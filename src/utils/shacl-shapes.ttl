@@ -1,0 +1,77 @@
+@prefix dash: <http://datashapes.org/dash#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+
+schema:VideoObjectShape
+    a sh:NodeShape ;
+    sh:targetClass schema:VideoObject ;
+    sh:property [
+        sh:path rdfs:label ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:isPartOf ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:minCount 1 ;
+        sh:minLength 1 ;
+        sh:maxLength 99 ;
+    ] ;
+    sh:property [
+        sh:path schema:name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:headline ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:creator ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:minCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:dateCreated ;
+        sh:datatype xsd:date ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:duration ;
+        sh:datatype xsd:string ;
+        # sh:pattern "P\p{Nd}{4}Y\p{Nd}{2}M" ; # https://www.w3.org/TR/xmlschema-2/#duration
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:encodingFormat ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:playerType ;
+        sh:in ( "single" "double" ) ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:maintainer ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path schema:additionalProperty ;
+        sh:nodeKind sh:IRIOrLiteral ;
+        sh:minCount 1 ;
+        sh:maxCount 2 ;
+    ] .
