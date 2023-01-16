@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Container, Card, CardContent, Typography, Box, FormControl, Select, MenuItem, TextField, Button, Dialog, DialogContent, DialogTitle, DialogActions, Grid, IconButton, Tooltip } from '@mui/material'
+import { Container, Card, CardContent, Typography, Box, FormControl, FormHelperText, Select, MenuItem, TextField, Button, Dialog, DialogContent, DialogTitle, DialogActions, Grid, IconButton, Tooltip } from '@mui/material'
 import { FaPlus, FaTimes } from 'react-icons/fa'
 import { MdEdit } from 'react-icons/md'
 import axios from 'axios'
 import moment from 'moment'
 import 'moment/locale/de'
-import { ELECTURE_THB_DOMAIN, PREFIXES, Person } from './../utils/constants'
+import { ELECTURE_THB_DOMAIN, PREFIXES, FIELD_INFOS, Person } from './../utils/constants'
 import Header from './../components/Header'
 import shapes_file from './../utils/shacl-shapes.ttl'
 import factory from 'rdf-ext'
@@ -27,16 +27,16 @@ const AddLecture = () => {
 		let data = PREFIXES
 
 		data += `
-		vide:${lecture?.name} a vidp:VideoLecture ; 
-			rdfs:label "${lecture?.label}" ; 
-			schema:name "${lecture?.name}" ; 
+		vide:${lecture?.name} a vidp:VideoLecture ;
+			${lecture?.label ? `rdfs:label "${lecture?.label}" ;` : ''}
+			${lecture?.name ? `schema:name "${lecture?.name}" ;` : ''}
 			schema:headline "${lecture?.headline_de}"@de , "${lecture?.headline_en}"@en ;
-			schema:inLanguage "${lecture?.language}" ; 
-			schema:thumbnail ${lecture?.thumbnail} ; 
-			schema:keywords "${lecture?.keywords_de}"@de , "${lecture?.keywords_en}"@en ; 
-			schema:description "${lecture?.description_de}"@de , "${lecture?.description_en}"@en ; 
-			schema:licence "${lecture?.license}" ; 
-			schema:about module:${lecture?.module} .
+			${lecture?.language ? `schema:inLanguage "${lecture?.language}" ;` : ''}
+			${lecture?.thumbnail ? `schema:thumbnail ${lecture?.thumbnail} ;` : ''}
+			schema:keywords "${lecture?.keywords_de}"@de , "${lecture?.keywords_en}"@en ;
+			schema:description "${lecture?.description_de}"@de , "${lecture?.description_en}"@en ;
+			${lecture?.license ? `schema:license "${lecture?.license}" ;` : ''}
+			${lecture?.module ? `schema:about module:${lecture?.module}` : ''} .
 		`
 		
 		clips.map(clip => {
@@ -143,7 +143,7 @@ const AddLecture = () => {
 
 		const data = createTurtleData()
 		const validation = await validateData(data)
-		if(validation) downloadTurtleData(data)
+		// if(validation) downloadTurtleData(data)
 	}
 
 	const handleChangeClip = (event, name) => {
@@ -283,7 +283,12 @@ const AddLecture = () => {
 								<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
 									Module
 								</Typography>
-								<FormControl fullWidth required size='small'>
+								<FormControl
+									fullWidth
+									required
+									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('about'))}
+								>
 									<Select
 										displayEmpty
 										value={lecture?.module ?? ''}
@@ -294,6 +299,7 @@ const AddLecture = () => {
 											<MenuItem value={module.iri} key={index}>{`${module.name}`}</MenuItem>
 										))}
 									</Select>
+									<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('about'))?.message ?? ''}</FormHelperText>
 								</FormControl>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -307,6 +313,8 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'headline_de')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -320,6 +328,8 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'headline_en')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -333,13 +343,20 @@ const AddLecture = () => {
 									onChange={(e) => handleDoubleChangeInput(e, 'label', 'name')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))?.message ?? FIELD_INFOS.addLectures.abbreviation}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
 								<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
 									Sprache
 								</Typography>
-								<FormControl fullWidth required size='small'>
+								<FormControl
+									fullWidth
+									required
+									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('inLanguage'))}
+								>
 									<Select
 										displayEmpty
 										value={lecture?.language ?? ''}
@@ -349,6 +366,7 @@ const AddLecture = () => {
 										<MenuItem value='de'>DE</MenuItem>
 										<MenuItem value='en'>EN</MenuItem>
 									</Select>
+									<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('inLanguage'))?.message ?? FIELD_INFOS.addLectures.language}</FormHelperText>
 								</FormControl>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -362,6 +380,9 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'thumbnail')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('thumbnail'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('thumbnail'))?.message ?? FIELD_INFOS.addLectures.abbreviation}
+									
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -375,6 +396,8 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'keywords_de')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -388,6 +411,8 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'keywords_en')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -403,6 +428,8 @@ const AddLecture = () => {
 									size='small'
 									multiline
 									rows={4}
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -418,6 +445,8 @@ const AddLecture = () => {
 									size='small'
 									multiline
 									rows={4}
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -431,6 +460,8 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'provider')}
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('provider'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('provider'))?.message ?? FIELD_INFOS.addLectures.provider}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -444,6 +475,8 @@ const AddLecture = () => {
 									disabled
 									required
 									size='small'
+									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('license'))}
+									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('license'))?.message ?? ''}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -618,7 +651,6 @@ const AddLecture = () => {
 										required
 										size='small'
 										error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))}
-										helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))?.message ?? ''}
 									>
 										<Select
 											displayEmpty
@@ -630,6 +662,7 @@ const AddLecture = () => {
 												<MenuItem value={creator.id} key={index}>{`${creator.label}`}</MenuItem>
 											))}
 										</Select>
+										<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))?.message ?? ''}</FormHelperText>
 									</FormControl>
 								</Box>
 								<Box sx={{ marginBottom: 2 }}>
@@ -643,7 +676,7 @@ const AddLecture = () => {
 											value={clip?.hours ?? ''}
 											onChange={(e) => handleChangeClip(e, 'hours')}
 											size='small'
-											label='hh'
+											label='Stunden'
 											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
@@ -656,7 +689,7 @@ const AddLecture = () => {
 											value={clip?.minutes ?? ''}
 											onChange={(e) => handleChangeClip(e, 'minutes')}
 											size='small'
-											label='mm'
+											label='Minuten'
 											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
@@ -669,7 +702,7 @@ const AddLecture = () => {
 											value={clip?.seconds ?? ''}
 											onChange={(e) => handleChangeClip(e, 'seconds')}
 											size='small'
-											label='ss'
+											label='Sekunden'
 											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
@@ -679,25 +712,23 @@ const AddLecture = () => {
 									<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
 										Type
 									</Typography>
-									<Tooltip title='test'>
-										<FormControl
-											fullWidth
-											required
-											size='small'
-											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))}
-											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))?.message ?? ''}
+									<FormControl
+										fullWidth
+										required
+										size='small'
+										error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))}
+									>
+										<Select
+											displayEmpty
+											value={clip?.playerType ?? ''}
+											onChange={(e) => handleChangeClip(e, 'playerType')}
 										>
-											<Select
-												displayEmpty
-												value={clip?.playerType ?? ''}
-												onChange={(e) => handleChangeClip(e, 'playerType')}
-											>
-												<MenuItem value=''>Bitte auswählen</MenuItem>
-												<MenuItem value='single'>Single</MenuItem>
-												<MenuItem value='double'>Double</MenuItem>
-											</Select>
-										</FormControl>
-									</Tooltip>
+											<MenuItem value=''>Bitte auswählen</MenuItem>
+											<MenuItem value='single'>Single</MenuItem>
+											<MenuItem value='double'>Double</MenuItem>
+										</Select>
+										<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))?.message ?? FIELD_INFOS.addLectures.playerType}</FormHelperText>
+									</FormControl>
 								</Box>
 								{clip?.playerType === 'single' && 
 									<Box sx={{ marginBottom: 2, display: 'flex', gap: 2 }}>
@@ -713,7 +744,7 @@ const AddLecture = () => {
 												required
 												size='small'
 												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
-												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? ''}
+												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
 									</Box>
@@ -732,7 +763,7 @@ const AddLecture = () => {
 												required
 												size='small'
 												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
-												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? ''}
+												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
 										<Box sx={{ flexGrow: 1 }}>
@@ -747,7 +778,7 @@ const AddLecture = () => {
 												required
 												size='small'
 												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
-												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? ''}
+												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
 									</Box>

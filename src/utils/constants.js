@@ -16,6 +16,16 @@ export const PREFIXES = `
     
 `
 
+export const FIELD_INFOS = {
+    addLectures: {
+        abbreviation: 'Besteht idealerweise aus 4 Zeichen und dient als Erkennungsmerkmal für die Lecture',
+        language: 'Sprache in der das Video aufgenommen wurde',
+        provider: 'Provider ist derzeit Vimeo',
+        playerType: 'Single – ohne Sprecher, Stimme mit Präsentation, Double – Video vom Sprecher + Video Präsentation',
+        vimeoID: 'Vimeo-ID ist im Link des hochgeladenen Videos angegeben'
+    }
+}
+
 export const StudyProgram = [
     {
         id: 'module:BMZK',
