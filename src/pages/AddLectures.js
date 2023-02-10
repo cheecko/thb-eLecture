@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Container, Card, CardContent, Typography, Box, FormControl, FormHelperText, Select, MenuItem, TextField, Button, Dialog, DialogContent, DialogTitle, DialogActions, Grid, IconButton, Tooltip } from '@mui/material'
+import { Container, Card, CardContent, Typography, Box, FormControl, FormHelperText, Select, MenuItem, TextField, Button, Dialog, DialogContent, DialogTitle, DialogActions, Grid, IconButton } from '@mui/material'
 import { FaPlus, FaTimes } from 'react-icons/fa'
 import { MdEdit } from 'react-icons/md'
 import axios from 'axios'
 import moment from 'moment'
 import 'moment/locale/de'
-import { ELECTURE_THB_DOMAIN, PREFIXES, FIELD_INFOS, Person } from './../utils/constants'
+import { ELECTURE_THB_DOMAIN, PREFIXES, FIELD_INFOS } from './../utils/constants'
 import Header from './../components/Header'
 import shapes_file from './../utils/shacl-shapes.ttl'
 import factory from 'rdf-ext'
@@ -13,7 +13,8 @@ import N3 from 'n3'
 import SHACLValidator from 'rdf-validate-shacl'
 
 const AddLecture = () => {
-	const [lecture, setLecture] = useState({ license: 'https://creativecommons.org/licenses/by-nc-sa/2.0/de/' })
+	const [lecture, setLecture] = useState({ license: 'https://creativecommons.org/licenses/by-nc-sa/2.0/de/', provider: 'wd:Q156376' })
+	const [isLectureCodeValid, setIsLectureCodeValid] = useState(true)
 	const [clip, setClip] = useState({})
 	const [clips, setClips] = useState([])
 	const [departments, setDepartments] = useState([])
@@ -21,7 +22,10 @@ const AddLecture = () => {
 	const [modules, setModules] = useState([])
 	const [dialogOpen, setDialogOpen] = useState(false)
 	const [creators, setCreators] = useState([])
+	const [lectureCodes, setLectureCodes] = useState([])
+	const [thumbnails, setThumbnails] = useState([])
 	const [validationReports, setValidationReports] = useState({})
+	const headers = { 'Accept-Language': 'de' }
 
 	const createTurtleData = () => {
 		let data = PREFIXES
@@ -30,11 +34,11 @@ const AddLecture = () => {
 		vide:${lecture?.name} a vidp:VideoLecture ;
 			${lecture?.label ? `rdfs:label "${lecture?.label}" ;` : ''}
 			${lecture?.name ? `schema:name "${lecture?.name}" ;` : ''}
-			schema:headline "${lecture?.headline_de}"@de , "${lecture?.headline_en}"@en ;
+			${lecture?.headline_de || lecture?.headline_en ? `schema:headline "${lecture?.headline_de}"@de , "${lecture?.headline_en}"@en ;` : ''}
 			${lecture?.language ? `schema:inLanguage "${lecture?.language}" ;` : ''}
-			${lecture?.thumbnail ? `schema:thumbnail ${lecture?.thumbnail} ;` : ''}
-			schema:keywords "${lecture?.keywords_de}"@de , "${lecture?.keywords_en}"@en ;
-			schema:description "${lecture?.description_de}"@de , "${lecture?.description_en}"@en ;
+			${lecture?.thumbnail ? `schema:thumbnail "https://drive.google.com/open?id=${lecture?.thumbnail}" ;` : ''}
+			${lecture?.keywords_de || lecture?.keywords_en ? `schema:keywords "${lecture?.keywords_de}"@de , "${lecture?.keywords_en}"@en ;` : ''}
+			${lecture?.description_de || lecture?.description_en ? `schema:description "${lecture?.description_de}"@de , "${lecture?.description_en}"@en ;` : ''}
 			${lecture?.license ? `schema:license "${lecture?.license}" ;` : ''}
 			${lecture?.module ? `schema:about module:${lecture?.module}` : ''} .
 		`
@@ -46,12 +50,12 @@ const AddLecture = () => {
 					schema:isPartOf vide:${lecture?.name} ;
 					schema:name "${lecture?.name} Clip ${clip?.id}" ;
 					${clip?.headline ? `schema:headline "${clip?.headline}" ;` : ''}
-					${clip?.creator ? `schema:creator ${clip?.creator} ;` : ''}
+					${clip?.creator ? `schema:creator "${clip?.creator}" ;` : ''}
 					${clip?.dateCreated ? `schema:dateCreated "${clip?.dateCreated}"^^xsd:date ;` : ''}
-					${clip?.hours || clip?.minutes || clip?.seconds ? `schema:duration "PT${clip?.hours && clip?.hours !== "0" ? `${clip?.hours}H` : ''}${clip?.minutes && clip?.minutes !== "0" ? `${clip?.minutes}M` : ''}${clip?.seconds && clip?.seconds !== "0" ? `${clip?.seconds}S` : ''}" ; ` : ''}
+					${clip?.hours || clip?.minutes || clip?.seconds ? `schema:duration "PT${clip?.hours ?? '0'}H${clip?.minutes ?? 0}M${clip?.seconds ?? 0 }S" ; ` : ''}
 					schema:encodingFormat "mp4" ;
 					${clip?.playerType ? `schema:playerType "${clip?.playerType}" ;` : ''}
-					schema:maintainer wd:Q156376 ;
+					${lecture?.provider ? `schema:maintainer ${lecture?.provider} ;` : ''}
 					${clip?.playerType ? `schema:additionalProperty ${clip?.playerType === 'double' ? `vide:${lecture?.name}_${clip?.id}_idl, vide:${lecture?.name}_${clip?.id}_ids` : `vide:${lecture?.name}_${clip?.id}_idp`}` : ''} .
 
 				${clip?.playerType === 'double' 
@@ -77,7 +81,7 @@ const AddLecture = () => {
 	}
 
 	const createQuads = (data) => {
-		console.log(data)
+		// console.log(data)
 		return new Promise(async resolve => {
 			let quads = []
 			const parser = new N3.Parser()
@@ -92,13 +96,13 @@ const AddLecture = () => {
 		const stream = await axios.get(shapes_file)
 		const shapes = await createQuads(stream.data)
 		const data = await createQuads(value)
-		console.log(shapes)
-		console.log(data)
+		// console.log(shapes)
+		// console.log(data)
 
 		const validator = new SHACLValidator(factory.dataset(shapes))
 		const report = await validator.validate(factory.dataset(data))
 
-		console.log(report)
+		// console.log(report)
 		let reports = []
 		report.results.forEach(result => {
 			const nodes = reports.find(report => report.node === result?.focusNode?.id)
@@ -142,8 +146,9 @@ const AddLecture = () => {
 		event.preventDefault()
 
 		const data = createTurtleData()
+		// console.log(data)
 		const validation = await validateData(data)
-		// if(validation) downloadTurtleData(data)
+		if(validation && isLectureCodeValid) downloadTurtleData(data)
 	}
 
 	const handleChangeClip = (event, name) => {
@@ -152,6 +157,7 @@ const AddLecture = () => {
 
 	const handleDoubleChangeInput = (event, name1, name2) => {
 		setLecture({...lecture, [name1]: event.target.value, [name2]: event.target.value})
+		if(name1 === 'label' || name2 === 'label') setIsLectureCodeValid(lectureCodes.find(code => code?.videolectureLabel?.toLowerCase() === event.target.value.toLowerCase()) ? false : true)
 	}
 
 	const handleChangeInput = (event, name) => {
@@ -173,14 +179,19 @@ const AddLecture = () => {
 	}
 
 	const handleDialogCommand = () => {
+		const duration = parseInt((clip?.hours ?? 0) * 3600) + parseInt((clip?.minutes ?? 0) * 60) + parseInt(clip?.seconds ?? 0)
+		const hours = Math.floor(duration / 3600)
+		const minutes = Math.floor((duration - (hours * 3600)) / 60)
+		const seconds = duration - hours * 3600 - minutes * 60
+
 		if(clip?.id < clips.length) {
 			setClips(clips.map(row =>
 				row.id === clip?.id
-					? clip
+					? { ...clip, hours: hours, minutes: minutes, seconds: seconds }
 					: row
 			))
 		}else {
-			setClips([...clips, clip])
+			setClips([...clips, { ...clip, hours: hours, minutes: minutes, seconds: seconds }])
 		}
 		setDialogOpen(false)
 	}
@@ -207,30 +218,34 @@ const AddLecture = () => {
 		})
 	}
 
-	console.log(departments)
-	console.log(studyPrograms)
-	console.log(lecture)
-	console.log(clips)
-	console.log(clip)
-	console.log(creators)
-	console.log(validationReports)
+	// console.log(departments)
+	// console.log(studyPrograms)
+	// console.log(lecture)
+	// console.log(clips)
+	// console.log(clip)
+	// console.log(creators)
+	// console.log(lectureCodes)
+	// console.log(thumbnails)
+	// console.log(validationReports)
 	
 	useEffect(() => {
-		const headers = { 'Accept-Language': 'de' }
 		axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/collegeOrUniversity/`, { headers: headers }).then(response => setDepartments(response.data?.result))
 	
-		setCreators(Person)
+		// lecturers api don't have iri so the creators will be created as string and not IRI
+		axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/lecturers/`, { headers: headers }).then(response => setCreators(response.data?.result))
+		axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/lectureCodes/`, { headers: headers }).then(response => setLectureCodes(response.data?.result))
+
+		// thumbnails api don't have iri so the creators will be created as string and not IRI
+		axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/thumbnails/`, { headers: headers }).then(response => setThumbnails(response.data?.result))
 	}, [])
 
 	useEffect(() => {
-		const headers = { 'Accept-Language': 'de' }
 		if(lecture.department) axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/studyProgram/collegeOrUniversity/${lecture?.department}`, { headers: headers }).then(response => setStudyPrograms(response.data?.result))
 		setLecture({...lecture, studyProgram: '', module: ''})
 		setModules([])
 	}, [lecture.department])
 
 	useEffect(() => {
-		const headers = { 'Accept-Language': 'de' }
 		if(lecture.studyProgram) axios.get(`${ELECTURE_THB_DOMAIN}/api/v1/module/studyProgram/${lecture?.studyProgram}`, { headers: headers }).then(response => setModules(response.data?.result))
 		setLecture({...lecture, module: ''})
 	}, [lecture.studyProgram])
@@ -287,7 +302,7 @@ const AddLecture = () => {
 									fullWidth
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('about'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('about'))}
 								>
 									<Select
 										displayEmpty
@@ -313,7 +328,7 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'headline_de')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))?.message ?? ''}
 								/>
 							</Box>
@@ -328,7 +343,7 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'headline_en')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('headline'))?.message ?? ''}
 								/>
 							</Box>
@@ -343,8 +358,8 @@ const AddLecture = () => {
 									onChange={(e) => handleDoubleChangeInput(e, 'label', 'name')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))}
-									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))?.message ?? FIELD_INFOS.addLectures.abbreviation}
+									error={!isLectureCodeValid || !!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))}
+									helperText={!isLectureCodeValid ? 'Dieses Kürzel wurde schon verwendet.' : validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('name'))?.message ?? FIELD_INFOS.addLectures.abbreviation}
 								/>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
@@ -355,7 +370,7 @@ const AddLecture = () => {
 									fullWidth
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('inLanguage'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('inLanguage'))}
 								>
 									<Select
 										displayEmpty
@@ -380,7 +395,7 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'thumbnail')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('thumbnail'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('thumbnail'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('thumbnail'))?.message ?? FIELD_INFOS.addLectures.abbreviation}
 									
 								/>
@@ -396,7 +411,7 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'keywords_de')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))?.message ?? ''}
 								/>
 							</Box>
@@ -411,7 +426,7 @@ const AddLecture = () => {
 									onChange={(e) => handleChangeInput(e, 'keywords_en')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('keyword'))?.message ?? ''}
 								/>
 							</Box>
@@ -428,7 +443,7 @@ const AddLecture = () => {
 									size='small'
 									multiline
 									rows={4}
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))?.message ?? ''}
 								/>
 							</Box>
@@ -445,7 +460,7 @@ const AddLecture = () => {
 									size='small'
 									multiline
 									rows={4}
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('description'))?.message ?? ''}
 								/>
 							</Box>
@@ -453,16 +468,22 @@ const AddLecture = () => {
 								<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
 									Provider
 								</Typography>
-								<TextField
-									variant='outlined'
+								<FormControl
 									fullWidth
-									value={lecture?.provider ?? ''}
-									onChange={(e) => handleChangeInput(e, 'provider')}
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('provider'))}
-									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('provider'))?.message ?? FIELD_INFOS.addLectures.provider}
-								/>
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('maintainer'))}
+								>
+									<Select
+										displayEmpty
+										value={lecture?.provider ?? ''}
+										onChange={(e) => handleChangeInput(e, 'provider')}
+									>
+										<MenuItem value=''>Bitte auswählen</MenuItem>
+										<MenuItem value='wd:Q156376'>Vimeo</MenuItem>
+									</Select>
+									<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('maintainer'))?.message ?? FIELD_INFOS.addLectures.provider}</FormHelperText>
+								</FormControl>
 							</Box>
 							<Box sx={{ marginBottom: 2 }}>
 								<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
@@ -475,7 +496,7 @@ const AddLecture = () => {
 									disabled
 									required
 									size='small'
-									error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('license'))}
+									error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('license'))}
 									helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}`))?.property.find(property => property?.path.includes('license'))?.message ?? ''}
 								/>
 							</Box>
@@ -496,7 +517,7 @@ const AddLecture = () => {
 															{clip?.creator}
 														</Typography>
 														<Typography variant='subtitle2'>
-															{clip?.hours?.padStart(2, '0') ?? '00'}:{clip?.minutes?.padStart(2, '0') ?? '00'}:{clip?.seconds?.padStart(2, '0') ?? '00'}
+															{clip?.hours?.toString()?.padStart(2, '0') ?? '00'}:{clip?.minutes?.toString()?.padStart(2, '0') ?? '00'}:{clip?.seconds?.toString()?.padStart(2, '0') ?? '00'}
 														</Typography>
 														<Typography variant='subtitle2'>
 															{`${clip?.playerType} (${clip?.playerType === 'double' ? `${clip?.lecturer}, ${clip?.screencast}` : `${clip?.podcast}`})`}
@@ -567,15 +588,15 @@ const AddLecture = () => {
 													<Typography variant='subtitle1'>
 														{report?.node}
 													</Typography>
-													{report.property.map(property => (
-														<>
+													{report.property.map((property, index) => (
+														<Box key={index}>
 															<Typography variant='subtitle1'>
 																{property?.path}
 															</Typography>
 															<Typography variant='subtitle1'>
 																{property?.message}
 															</Typography>
-														</>
+														</Box>
 													))}
 												</Box>
 											</CardContent>
@@ -622,7 +643,7 @@ const AddLecture = () => {
 											onChange={(e) => handleChangeClip(e, 'dateCreated')}
 											required
 											size='small'
-											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('dateCreated'))}
+											error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('dateCreated'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('dateCreated'))?.message ?? ''}
 										/>
 									</Box>
@@ -638,7 +659,7 @@ const AddLecture = () => {
 										onChange={(e) => handleChangeClip(e, 'headline')}
 										required
 										size='small'
-										error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('headline'))}
+										error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('headline'))}
 										helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('headline'))?.message ?? ''}
 									/>
 								</Box>
@@ -650,7 +671,7 @@ const AddLecture = () => {
 										fullWidth
 										required
 										size='small'
-										error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))}
+										error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))}
 									>
 										<Select
 											displayEmpty
@@ -659,7 +680,7 @@ const AddLecture = () => {
 										>
 											<MenuItem value=''>Bitte auswählen</MenuItem>
 											{creators.map((creator, index) => (
-												<MenuItem value={creator.id} key={index}>{`${creator.label}`}</MenuItem>
+												<MenuItem value={creator.lecturerName} key={index}>{`${creator.lecturerName}`}</MenuItem>
 											))}
 										</Select>
 										<FormHelperText>{validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('creator'))?.message ?? ''}</FormHelperText>
@@ -677,7 +698,7 @@ const AddLecture = () => {
 											onChange={(e) => handleChangeClip(e, 'hours')}
 											size='small'
 											label='Stunden'
-											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
+											error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
 										<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
@@ -690,7 +711,7 @@ const AddLecture = () => {
 											onChange={(e) => handleChangeClip(e, 'minutes')}
 											size='small'
 											label='Minuten'
-											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
+											error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
 										<Typography variant='subtitle1' sx={{ marginBottom: 0.5 }}>
@@ -703,7 +724,7 @@ const AddLecture = () => {
 											onChange={(e) => handleChangeClip(e, 'seconds')}
 											size='small'
 											label='Sekunden'
-											error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
+											error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))}
 											helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('duration'))?.message ?? ''}
 										/>
 									</Box>
@@ -716,7 +737,7 @@ const AddLecture = () => {
 										fullWidth
 										required
 										size='small'
-										error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))}
+										error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('playerType'))}
 									>
 										<Select
 											displayEmpty
@@ -743,7 +764,7 @@ const AddLecture = () => {
 												onChange={(e) => handleChangeClip(e, 'podcast')}
 												required
 												size='small'
-												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
+												error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
 												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
@@ -762,7 +783,7 @@ const AddLecture = () => {
 												onChange={(e) => handleChangeClip(e, 'lecturer')}
 												required
 												size='small'
-												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
+												error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
 												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
@@ -777,7 +798,7 @@ const AddLecture = () => {
 												onChange={(e) => handleChangeClip(e, 'screencast')}
 												required
 												size='small'
-												error={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
+												error={!!validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))}
 												helperText={validationReports?.reports?.find(report => report.node.includes(`${lecture?.name}_${clip?.id}`))?.property.find(property => property?.path.includes('additionalProperty'))?.message ?? FIELD_INFOS.addLectures.vimeoID}
 											/>
 										</Box>
@@ -788,7 +809,7 @@ const AddLecture = () => {
 					</DialogContent>
 					<DialogActions>
 						<Button onClick={handleCloseDialog} color='secondary'>
-							Abrechen
+							Abbrechen
 						</Button>
 						<Button onClick={handleDialogCommand} color='primary'>
 							{clip?.id < clips.length ? 'aktualisieren' : 'anlegen'}
