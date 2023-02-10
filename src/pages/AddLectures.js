@@ -148,7 +148,7 @@ const AddLecture = () => {
 		const data = createTurtleData()
 		// console.log(data)
 		const validation = await validateData(data)
-		if(validation && isLectureCodeValid) downloadTurtleData(data)
+		if(validation && isLectureCodeValid) downloadTurtleData(data) 
 	}
 
 	const handleChangeClip = (event, name) => {
