@@ -76,8 +76,7 @@ schema:VideoObjectShape
         sh:path schema:isPartOf ;
         sh:nodeKind sh:IRI ;
         sh:minCount 1 ;
-        sh:minLength 1 ;
-        sh:maxLength 99 ;
+        sh:maxCount 99 ;
     ] ;
     sh:property [
         sh:path schema:name ;
